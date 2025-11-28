@@ -1,0 +1,54 @@
+#game-container {
+    width: 600px;
+    height: 150px;
+    border: 5px solid #000;
+    margin: 50px auto;
+    overflow: hidden; /* 공룡과 선인장이 이 영역 밖으로 나가지 않도록 */
+    position: relative;
+    background-color: #f7f7f7;
+}
+
+#dino {
+    width: 40px;
+    height: 40px;
+    background-color: green; /* 간단한 박스로 표현 */
+    position: absolute;
+    bottom: 0;
+    left: 50px;
+    transition: bottom 0.2s; /* 점프할 때 부드럽게 보이도록 */
+}
+
+#cactus {
+    width: 20px;
+    height: 40px;
+    background-color: brown; /* 간단한 박스로 표현 */
+    position: absolute;
+    bottom: 0;
+    right: -20px; /* 처음에는 화면 밖에 배치 */
+}
+
+#score {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 1.5em;
+    font-family: monospace;
+}
+
+#game-over-message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 2em;
+    text-align: center;
+    color: red;
+    background-color: rgba(255, 255, 255, 0.8);
+    padding: 10px;
+    border-radius: 5px;
+    font-family: monospace;
+}
+
+.hidden {
+    display: none;
+}
