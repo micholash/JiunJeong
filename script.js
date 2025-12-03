@@ -1,45 +1,50 @@
-// script.js (수정된 applyPhysics 함수)
+const dino = document.getElementById('dino');
+const cactus = document.getElementById('cactus');
+const scoreDisplay = document.getElementById('score');
+const gameOverMessage = document.getElementById('game-over-message');
 
+let isJumping = false;
+let isGameOver = false;
+let score = 0;
+
+// === 물리 및 애니메이션 변수 ===
+let positionY = 0;      // 공룡의 현재 Y축 위치 (바닥으로부터의 높이, 0이 바닥)
+let velocityY = 0;      // 공룡의 현재 Y축 속도
+const gravity = 0.6;    // 중력 가속도 (양수, 아래로 당기는 힘)
+const jumpForce = 12;   // 점프 초기 힘 (양수, 초기 속도를 아래로 향하는 힘에 반대로 작용시키기 위함)
+let animationFrameId = null; // requestAnimationFrame ID
+
+// === 1. 점프 로직 (물리 기반) ===
+function jump() {
+    // 게임 오버 상태이거나 이미 점프 중이면 무시
+    if (isJumping || isGameOver) return;
+    
+    isJumping = true;
+    velocityY = -jumpForce; // 위로 향하는 힘은 속도를 '감소'시켜야 하므로 음수로 시작
+}
+
+// === 2. 애니메이션 루프 (requestAnimationFrame 사용) ===
 function applyPhysics() {
     if (isGameOver) {
+        // 게임 오버 시 애니메이션 루프 종료
         cancelAnimationFrame(animationFrameId);
         return;
     }
 
     // A. Y축 위치/속도 업데이트 (중력 적용)
-    velocityY += gravity;         // 중력에 의해 속도 증가 (아래로 당겨짐)
+    // 중력은 아래 방향(positionY를 감소시키는 방향)으로 작용하므로, velocityY에 양수 gravity를 더함
+    velocityY += gravity;         
     
-    // ★★★★ 수정: 위치를 뺄셈 대신 덧셈으로 업데이트 ★★★★
-    // 이전에 positionY를 높이로 정의했으므로, 
-    // 속도가 음수(위로)일 때는 positionY가 증가하고, 양수(아래로)일 때는 positionY가 감소해야 함.
-    positionY += velocityY;       // 위치 업데이트: positionY에 속도(velocityY)를 더합니다.
-    // 현재 velocityY가 양수(아래)이므로 positionY는 증가해야 하지만,
-    // 점프 로직이 'velocityY'를 음수(위)로 만들기 때문에, Y축 방향을 바꿔야 합니다.
-
-    // 💡 더 직관적인 계산을 위해, Y축을 실제 CSS bottom 값과 일치시키고, 중력을 양수로 유지합시다.
-    
-    // ★★★ 최종 수정: Y축 속도와 위치 업데이트 ★★★
-    positionY += velocityY;   // Y축 위치에 속도 적용
-    velocityY -= gravity;     // 중력을 빼서, 위로 향하는 힘(양수)을 점차 감소시킴
-    // (이렇게 하려면, 점프 시 초기 velocityY를 양수로 설정해야 합니다.)
-    
-    // 이 방식 대신, 가장 안전한 방법은 바닥 충돌 시점을 명확히 하는 것입니다.
-
-    // === 안전한 수정: 기존 로직에서 Y축이 음수가 되는 것을 방지 ===
-
-    // 1. 중력 적용 (속도 변경)
-    velocityY += gravity;
-
-    // 2. 위치 변경
-    // positionY -= velocityY; // <- 이 부분이 문제
-
-    positionY = positionY - velocityY; // positionY는 0이 바닥, 양수가 높이
+    // 위치 업데이트: positionY에서 velocityY를 '뺌'
+    // velocityY가 음수(위로)일 때 positionY는 증가(+)하고, 양수(아래로)일 때 positionY는 감소(-)함.
+    positionY -= velocityY;       
 
     // B. 바닥 충돌 처리 (착지)
-    if (positionY < 0) { // ★★★ 수정: 0보다 작아지면 (바닥 아래로 내려가면)
-        positionY = 0;              
-        velocityY = 0;              
-        isJumping = false;          
+    if (positionY < 0) {
+        // 위치가 0보다 작아지면 (바닥 아래로 내려가면)
+        positionY = 0;              // 위치를 바닥에 고정
+        velocityY = 0;              // 속도 0
+        isJumping = false;          // 점프 종료
     }
 
     // C. 공룡 DOM 위치 업데이트
@@ -49,11 +54,97 @@ function applyPhysics() {
     animationFrameId = requestAnimationFrame(applyPhysics);
 }
 
-// startGameLoop 함수 내부나 시작 시
+
+// === 3. 게임 루프 (선인장 이동 및 충돌) ===
+
+let cactusMoveInterval;
+let speed = 5; // 선인장 기본 속도
+
 function startGameLoop() {
-    // ...
-    // 초기화 시 positionY와 velocityY를 0으로 설정했는지 다시 확인
+    // 모든 상태 초기화
+    isGameOver = false;
+    score = 0;
+    totalMoves = 0; // 이전에 사용된 변수라면 초기화
+    scoreDisplay.innerText = score;
+    gameOverMessage.classList.add('hidden');
+    dino.style.backgroundColor = 'green';
+    
+    // 물리 변수 초기화 및 공룡 위치 고정
     positionY = 0; 
     velocityY = 0;
-    // ...
+    isJumping = false;
+    dino.style.bottom = '0px'; // CSS 위치도 0으로 설정
+    speed = 5; // 속도 초기화
+
+    // 기존 타이머와 애니메이션 루프 정리
+    if (cactusMoveInterval) clearInterval(cactusMoveInterval);
+    if (animationFrameId) cancelAnimationFrame(animationFrameId);
+    
+    // 물리 기반 애니메이션 루프 시작
+    applyPhysics();
+
+    // 선인장 이동 및 점수 로직
+    let cactusPosition = 600;
+
+    cactusMoveInterval = setInterval(() => {
+        if (isGameOver) return;
+
+        cactusPosition -= speed;
+        
+        // 선인장이 화면 밖으로 나가면 리셋
+        if (cactusPosition < -20) {
+            cactusPosition = 600; 
+            score++;
+            scoreDisplay.innerText = score;
+            
+            // 10점마다 속도 증가 
+            if (score % 10 === 0) { 
+                 speed += 0.5;
+            }
+        }
+        cactus.style.right = `${600 - cactusPosition}px`;
+
+        // === 4. 충돌 감지 ===
+        const dinoRect = dino.getBoundingClientRect();
+        const cactusRect = cactus.getBoundingClientRect();
+
+        // X축 충돌 조건
+        const xCollision = dinoRect.left < cactusRect.right && dinoRect.right > cactusRect.left;
+        
+        // Y축 충돌 조건 (공룡의 아랫 부분이 선인장의 윗 부분보다 아래에 있지 않을 때)
+        // 공룡의 bottom (CSS height)이 선인장의 top (CSS height)을 넘지 않을 때 충돌
+        const yCollision = dinoRect.bottom > cactusRect.top; 
+
+        if (xCollision && yCollision) {
+            endGame();
+        }
+        
+    }, 20); 
 }
+
+function endGame() {
+    isGameOver = true;
+    clearInterval(cactusMoveInterval);
+    cancelAnimationFrame(animationFrameId); 
+    
+    gameOverMessage.classList.remove('hidden');
+    dino.style.backgroundColor = 'red';
+}
+
+function restartGame() {
+    startGameLoop(); // 상태 초기화 및 게임 재시작
+}
+
+// === 이벤트 리스너 ===
+document.addEventListener('keydown', function(event) {
+    if (event.code === 'Space') {
+        if (isGameOver) {
+            restartGame();
+        } else {
+            jump(); 
+        }
+    }
+});
+
+// HTML 문서의 모든 요소 로드 후 게임 루프 시작
+document.addEventListener('DOMContentLoaded', startGameLoop);
