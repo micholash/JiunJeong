@@ -1,29 +1,5 @@
-const dino = document.getElementById('dino');
-const cactus = document.getElementById('cactus');
-const scoreDisplay = document.getElementById('score');
-const gameOverMessage = document.getElementById('game-over-message');
+// script.js (수정된 applyPhysics 함수)
 
-let isJumping = false;
-let isGameOver = false;
-let score = 0;
-
-// === 물리 및 애니메이션 변수 ===
-let positionY = 0;      // 공룡의 현재 Y축 위치 (바닥으로부터의 높이)
-let velocityY = 0;      // 공룡의 현재 Y축 속도
-const gravity = 0.6;    // 중력 가속도 (양수)
-const jumpForce = 12;   // 점프 초기 힘 (음수, 위로 향하는 힘)
-let animationFrameId = null; // requestAnimationFrame ID
-
-// === 1. 점프 로직 (물리 기반) ===
-function jump() {
-    // 게임 오버 상태이거나 이미 점프 중이면 무시
-    if (isJumping || isGameOver) return;
-    
-    isJumping = true;
-    velocityY = -jumpForce; // 위로 강한 힘을 가함 (Y축은 위로 갈수록 작아지는 좌표계를 따름)
-}
-
-// === 2. 애니메이션 루프 (requestAnimationFrame 사용) ===
 function applyPhysics() {
     if (isGameOver) {
         cancelAnimationFrame(animationFrameId);
@@ -32,109 +8,52 @@ function applyPhysics() {
 
     // A. Y축 위치/속도 업데이트 (중력 적용)
     velocityY += gravity;         // 중력에 의해 속도 증가 (아래로 당겨짐)
-    positionY -= velocityY;       // 위치 업데이트 (속도만큼 위치 변경)
+    
+    // ★★★★ 수정: 위치를 뺄셈 대신 덧셈으로 업데이트 ★★★★
+    // 이전에 positionY를 높이로 정의했으므로, 
+    // 속도가 음수(위로)일 때는 positionY가 증가하고, 양수(아래로)일 때는 positionY가 감소해야 함.
+    positionY += velocityY;       // 위치 업데이트: positionY에 속도(velocityY)를 더합니다.
+    // 현재 velocityY가 양수(아래)이므로 positionY는 증가해야 하지만,
+    // 점프 로직이 'velocityY'를 음수(위)로 만들기 때문에, Y축 방향을 바꿔야 합니다.
+
+    // 💡 더 직관적인 계산을 위해, Y축을 실제 CSS bottom 값과 일치시키고, 중력을 양수로 유지합시다.
+    
+    // ★★★ 최종 수정: Y축 속도와 위치 업데이트 ★★★
+    positionY += velocityY;   // Y축 위치에 속도 적용
+    velocityY -= gravity;     // 중력을 빼서, 위로 향하는 힘(양수)을 점차 감소시킴
+    // (이렇게 하려면, 점프 시 초기 velocityY를 양수로 설정해야 합니다.)
+    
+    // 이 방식 대신, 가장 안전한 방법은 바닥 충돌 시점을 명확히 하는 것입니다.
+
+    // === 안전한 수정: 기존 로직에서 Y축이 음수가 되는 것을 방지 ===
+
+    // 1. 중력 적용 (속도 변경)
+    velocityY += gravity;
+
+    // 2. 위치 변경
+    // positionY -= velocityY; // <- 이 부분이 문제
+
+    positionY = positionY - velocityY; // positionY는 0이 바닥, 양수가 높이
 
     // B. 바닥 충돌 처리 (착지)
-    if (positionY > 0) {
-        positionY = 0;              // 바닥에 고정
-        velocityY = 0;              // 속도 0
-        isJumping = false;          // 점프 종료
+    if (positionY < 0) { // ★★★ 수정: 0보다 작아지면 (바닥 아래로 내려가면)
+        positionY = 0;              
+        velocityY = 0;              
+        isJumping = false;          
     }
 
     // C. 공룡 DOM 위치 업데이트
-    // positionY는 바닥으로부터의 높이이므로, CSS 'bottom' 속성에 바로 적용
     dino.style.bottom = `${positionY}px`;
 
     // D. 다음 프레임 요청
     animationFrameId = requestAnimationFrame(applyPhysics);
 }
 
-
-// === 3. 장애물 이동 및 충돌 감지 로직 (이전 코드 유지) ===
-
-let cactusMoveInterval;
-
+// startGameLoop 함수 내부나 시작 시
 function startGameLoop() {
-    isGameOver = false;
-    gameOverMessage.classList.add('hidden');
-    score = 0;
-    scoreDisplay.innerText = score;
-
-    dino.style.backgroundColor = 'green';
-
-    // 물리 기반 애니메이션 루프 시작
-    if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-    }
-    applyPhysics(); // <-- 새로운 애니메이션 루프 시작
-
-    // 선인장 이동 애니메이션 (기존 JS 로직 유지)
-    let cactusPosition = 600;
-    let speed = 5; 
-
-    cactusMoveInterval = setInterval(() => {
-        if (isGameOver) return;
-
-        cactusPosition -= speed;
-        if (cactusPosition < -20) {
-            cactusPosition = 600; 
-            score++;
-            scoreDisplay.innerText = score;
-            
-            // 10점마다 속도 증가 (선택 사항)
-            if (score % 10 === 0) { 
-                 speed += 0.5;
-            }
-        }
-        cactus.style.right = `${600 - cactusPosition}px`;
-
-        // === 4. 충돌 감지 ===
-        const dinoRect = dino.getBoundingClientRect();
-        const cactusRect = cactus.getBoundingClientRect();
-
-        const collision = 
-            dinoRect.left < cactusRect.right &&
-            dinoRect.right > cactusRect.left &&
-            // 공룡이 땅에 붙어 있거나(positionY=0) 점프 중일 때 높이 검사
-            (dinoRect.bottom > cactusRect.top && dinoRect.bottom < cactusRect.bottom);
-            // 점프를 통해 선인장 위를 지나갈 때 충돌을 피하게 됩니다.
-
-        if (collision) {
-            endGame();
-        }
-        
-    }, 20); 
-}
-
-function endGame() {
-    isGameOver = true;
-    clearInterval(cactusMoveInterval);
-    cancelAnimationFrame(animationFrameId); // 애니메이션 루프 종료
-    
-    gameOverMessage.classList.remove('hidden');
-    dino.style.backgroundColor = 'red';
-}
-
-function restartGame() {
-    isGameOver = false;
-    dino.style.backgroundColor = 'green';
-    cactus.style.right = '-20px'; 
+    // ...
+    // 초기화 시 positionY와 velocityY를 0으로 설정했는지 다시 확인
     positionY = 0; 
     velocityY = 0;
-    isJumping = false;
-    startGameLoop();
+    // ...
 }
-
-// 키보드 이벤트 리스너: 스페이스바를 누르면 점프
-document.addEventListener('keydown', function(event) {
-    if (event.code === 'Space') {
-        if (isGameOver) {
-            restartGame();
-        } else {
-            jump(); // jump 함수 호출
-        }
-    }
-});
-
-// 게임 시작
-document.addEventListener('DOMContentLoaded', startGameLoop);
